@@ -7,49 +7,73 @@
 #
 # https://github.com/RYNEQ/Firewall-Port-Scanner.git
 
-host=""
-user=""
-password=""
-start=1024
-end=10000
+
+hash sshpass 2>/dev/null || { echo >&2 "This script requires \"sshpass\" program but it's not installed.  Aborting."; exit 1; }
+hash netcat 2>/dev/null || { echo >&2 "This script requires \"netcat\" program but it's not installed.  Aborting."; exit 1; }
+
+
+port_start=1024
+port_end=10000
 sudopart=""
+timeout=5
 
-if (("$#" < 2)); then
-		echo <<EOF
-	Usage $0 host.tld username [password] [start] [end]
-		username: a valid username 
-			if scanning ports below 1024 the username must be a sudoer otherwise only ports with active service are scanned and the rest are detected as closed.
-		
-		password: valid password for the \$username
-			if this option be omitted the password will be asked from user
-		
-		start: starting port number (default: 1024)
-		end: ending port number (default: 10000)
-EOF
+usage() { echo "Usage: $0 host [-u <username>] [-p password] [-s start_port] [-e end_port] [-t testtimeout]" 1>&2; exit 1; }
 
-		exit 1
+if (("$#" < 1)); then
+	usage
 fi
 
-host=$1
-user=$2
+host=$1; shift
 
-if (("$#" < 3)); then
-	echo -n "Password: "
+while getopts ":u:p:s:e:t:" o; do
+    case "${o}" in
+        u)
+            username=${OPTARG}
+            ;;
+        p)
+            password=${OPTARG}
+            ;;
+	s)
+	    port_start=${OPTARG}
+	    ;;
+	e)
+	    port_end=${OPTARG}
+	    ;;
+	t)
+	    timeout=${OPTARG}
+	    ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+
+if [ ! "$username" ]; then
+	username=$(whoami)
+fi
+
+if [ ! "$password" ]; then
+	echo -n "Password for $username@$host: "
 	read -s password
 	echo ""
-else
-	password=$3
 fi
 
-if (("$#" > 3)); then
-	start=$4
-fi
-if (("$#" > 4)); then
-	end=$5
+if [ ! "$password" ]; then
+	echo "No password! Aborting ..."
+	exit 1;
 fi
 
 
-for p in $(seq $start $end); do
+
+sshpass -p "$password" ssh $username@$host "which netcat > /dev/null"
+if [ $? -ne 0 ]; then
+	echo "This script requires \"netcat\" on remote machine; but cannot find it there! aborting."
+	exit 1
+fi
+
+for p in $(seq $port_start $port_end); do
 	if (("$p" <= 1024)); then
 		sudopart=" echo '$password' | sudo -S "	
 	else
@@ -57,10 +81,10 @@ for p in $(seq $start $end); do
 	fi
 
 	echo -n "Openning port $p on remote system ... "
-	RES=$(sshpass -p "$password" ssh $user@$host "sh -c 'echo "$password" | sudo -S killall -s KILL netcat 2>&1; $sudopart netcat -l $p > /dev/null 2>&1 &'")	
+	RES=$(sshpass -p "$password" ssh $username@$host "sh -c 'echo "$password" | sudo -S killall -s KILL netcat 2>&1; $sudopart netcat -l $p > /dev/null 2>&1 &'")	
 	echo -n "[OK]"
 
 	echo -n " Testing ... "
-	nc -zw5 $host $p && echo "[open]" || echo "[close]"
+	nc -zw${timeout} $host $p && echo "[open]" || echo "[close]"
 
 done
