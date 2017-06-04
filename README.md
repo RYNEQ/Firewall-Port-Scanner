@@ -4,7 +4,7 @@ An Scanner bash script to check tcp connectivity between a firewalled machine an
 Usage
 ------
 
-Usage: ./scanner.sh host [-u <username>] [-p password] [-s start_port] [-e end_port] [-t testtimeout]
+Usage: ./scanner.sh host [-u \<username\>] [-p password] [-s start_port] [-e end_port] [-t testtimeout]
 
 
 - If username be ommited current username will be used
