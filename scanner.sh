@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
 # By RYN ( ariyan.eghbal@gmail.com )
-# Requires: sshpass, netcat, ss
+# Requires: 
+#	sshpass: behind NAT machine
+#	netcat: both machines
+#
+# https://github.com/RYNEQ/Firewall-Port-Scanner.git
 
 host=""
 user=""
@@ -53,7 +57,7 @@ for p in $(seq $start $end); do
 	fi
 
 	echo -n "Openning port $p on remote system ... "
-	RES=$(sshpass -p "$password" ssh $user@$host "sh -c 'killall -s KILL netcat 2>&1; $sudopart netcat -l $p > /dev/null 2>&1 &'")	
+	RES=$(sshpass -p "$password" ssh $user@$host "sh -c 'echo "$password" | sudo -S killall -s KILL netcat 2>&1; $sudopart netcat -l $p > /dev/null 2>&1 &'")	
 	echo -n "[OK]"
 
 	echo -n " Testing ... "
